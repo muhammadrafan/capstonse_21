@@ -160,16 +160,9 @@ def generate_conclusion_with_llm(description, sentiment_summary):
         f"Ringkasan sentimen:\n{sentiment_summary}\n\n"
         "Kesimpulan:"
     )
-    prompt2 = (
-    "System: Kamu adalah asisten yang sangat singkat dan akurat dalam menebak nama produk dari deskripsi.\n"
-    "User: Berdasarkan deskripsi berikut, sebutkan hanya nama dan brand produknya saja. Jangan beri penjelasan apapun.\n\n"
-    f"Deskripsi produk:\n{description}\n\n"
-    "Nama Produk:"
-)
 
     # Tokenisasi input dengan truncation dan max_length yang aman
     inputs1 = tokenizer_llm(prompt1, return_tensors="pt", truncation=True, max_length=1024).to(model_llm.device)
-    inputs2 = tokenizer_llm(prompt2, return_tensors="pt", truncation=True, max_length=1024).to(model_llm.device)
 
     # Generate output
     output1 = model_llm.generate(
@@ -182,31 +175,15 @@ def generate_conclusion_with_llm(description, sentiment_summary):
         eos_token_id=tokenizer_llm.eos_token_id or tokenizer_llm.pad_token_id,  # fallback kalau EOS nggak ada
     )
 
-    output2 = model_llm.generate(
-        **inputs2,
-        max_new_tokens=150,
-        do_sample=True,
-        top_k=50,
-        top_p=0.95,
-        temperature=0.8,
-        eos_token_id=tokenizer_llm.eos_token_id or tokenizer_llm.pad_token_id,  # fallback kalau EOS nggak ada
-    )
-
     # Decode hasil
     full_output1 = tokenizer_llm.decode(output1[0], skip_special_tokens=True)
-    full_output2 = tokenizer_llm.decode(output2[0], skip_special_tokens=True)
     # Ekstrak bagian setelah "Kesimpulan:"
     if "Kesimpulan:" in full_output1:
         conclusion = full_output1.split("Kesimpulan:")[-1].strip()
     else:
         conclusion = full_output1.strip()
-    
-    if "Nama Produk:" in full_output2:
-        name = full_output2.split("Nama Produk:")[-1].strip().split("\n")[0]
-    else:
-        name = full_output2.strip().split("\n")[0]
 
-    return conclusion, name
+    return conclusion
 
 
 # Function to analyze sentiment
@@ -308,13 +285,10 @@ if st.button("🚀 Analisis Sentimen"):
 
              # Generate conclusion with DeepSeek
             with st.spinner("Membuat kesimpulan..."):
-                conclusion, name = generate_conclusion_with_llm(desc, summary)
+                conclusion = generate_conclusion_with_llm(desc, summary)
             
             st.subheader("📌 Kesimpulan")
             st.markdown(conclusion)
-
-            st.subheader("📌 Nama Produk")
-            st.markdown(name)
 
             sentiment_df.to_csv("Tokopedia_Reviews.csv", index=False)
             st.success("✅ Analisis selesai! Data ulasan disimpan sebagai 'Tokopedia_Reviews.csv'.")
